@@ -1,0 +1,32 @@
+{
+  "name": "create-nuxt-stack",
+  "version": "1.0.0",
+  "description": "CLI tool to scaffold Nuxt projects with modules, storage, and tooling",
+  "type": "module",
+  "main": "scaffold.ts",
+  "bin": {
+    "create-nuxt-stack": "./scaffold.ts"
+  },
+  "scripts": {
+    "scaffold": "bun run scaffold.ts",
+    "scaffold:dry": "bun run scaffold.ts --dry-run"
+  },
+  "keywords": [
+    "nuxt",
+    "vue",
+    "scaffold",
+    "cli",
+    "starter",
+    "bun",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14"
+  }
+}

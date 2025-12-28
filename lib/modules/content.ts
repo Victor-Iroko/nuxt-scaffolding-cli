@@ -1,19 +1,13 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, writeFile, ensureDir, logger } from '../utils'
+import { writeFile, ensureDir, logger } from '../utils'
 
-export async function installContent(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Installing @nuxt/content...')
+export const CONTENT_PACKAGES = {
+  deps: ['@nuxt/content'],
+}
 
-  const installed = await bunInstall(['@nuxt/content'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install @nuxt/content')
-    return false
-  }
+export async function setupContent(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Setting up @nuxt/content...')
 
   const contentConfig = `import { defineContentConfig, defineCollection } from '@nuxt/content'
 
@@ -47,7 +41,7 @@ This is your first content page.
     dryRun: config.dryRun,
   })
 
-  logger.success('@nuxt/content installed')
+  logger.success('@nuxt/content configured')
   return true
 }
 

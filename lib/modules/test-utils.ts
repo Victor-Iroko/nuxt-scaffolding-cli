@@ -1,23 +1,13 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+import { writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
 
-export async function installTestUtils(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Installing @nuxt/test-utils...')
+export const TEST_UTILS_PACKAGES = {
+  devDeps: ['@nuxt/test-utils', 'vitest', '@vue/test-utils', 'happy-dom'],
+}
 
-  const installed = await bunInstall(
-    ['@nuxt/test-utils', 'vitest', '@vue/test-utils', 'happy-dom'],
-    {
-      cwd: config.projectPath,
-      dev: true,
-      dryRun: config.dryRun,
-    }
-  )
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install @nuxt/test-utils')
-    return false
-  }
+export async function setupTestUtils(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Setting up @nuxt/test-utils...')
 
   const vitestConfig = `import { defineVitestConfig } from '@nuxt/test-utils/config'
 
@@ -66,7 +56,7 @@ describe('Example', () => {
     { dryRun: config.dryRun }
   )
 
-  logger.success('@nuxt/test-utils installed')
+  logger.success('@nuxt/test-utils configured')
   return true
 }
 

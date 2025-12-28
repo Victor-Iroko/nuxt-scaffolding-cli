@@ -1,30 +1,30 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, exec, writeFile, addScriptsToPackageJson, updatePackageJson, logger } from '../utils'
+import { exec, writeFile, addScriptsToPackageJson, updatePackageJson, logger } from '../utils'
+
+export const TOOLING_PACKAGES = {
+  devDeps: [
+    'concurrently',
+    'husky',
+    'lint-staged',
+    'prettier',
+    'prettier-plugin-tailwindcss',
+    '@commitlint/cli',
+    '@commitlint/config-conventional',
+  ],
+}
 
 export async function setupTooling(config: ScaffoldConfig): Promise<boolean> {
   logger.title('Setting up Development Tooling')
 
   let allSuccess = true
 
-  logger.step('Installing dev dependencies...')
-
-  const installed = await bunInstall(
-    ['concurrently', 'husky', 'lint-staged', 'prettier', 'prettier-plugin-tailwindcss'],
-    {
-      cwd: config.projectPath,
-      dev: true,
-      dryRun: config.dryRun,
-    }
-  )
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install dev dependencies')
-    allSuccess = false
-  }
+  logger.step('Configuring Prettier...')
 
   const prettierConfig = `{
   "plugins": ["prettier-plugin-tailwindcss"],
+  "tailwindStylesheet": "./app/assets/css/main.css",
+  "tailwindAttributes": [":ui"],
   "semi": false,
   "singleQuote": true,
   "tabWidth": 2,
@@ -85,20 +85,6 @@ bun exec lint-staged
   )
 
   logger.step('Setting up commitlint...')
-
-  const commitlintInstalled = await bunInstall(
-    ['@commitlint/cli', '@commitlint/config-conventional'],
-    {
-      cwd: config.projectPath,
-      dev: true,
-      dryRun: config.dryRun,
-    }
-  )
-
-  if (!commitlintInstalled && !config.dryRun) {
-    logger.error('Failed to install commitlint')
-    allSuccess = false
-  }
 
   const commitlintConfig = `export default {
   extends: ['@commitlint/config-conventional'],

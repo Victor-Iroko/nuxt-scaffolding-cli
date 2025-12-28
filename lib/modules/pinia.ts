@@ -1,32 +1,15 @@
 import type { ScaffoldConfig } from '../types'
-import { exec, bunInstall, logger } from '../utils'
+import { logger } from '../utils'
 
-export async function installPinia(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Installing @pinia/nuxt and pinia-plugin-persistedstate...')
+export const PINIA_PACKAGES = {
+  deps: ['pinia-plugin-persistedstate'],
+}
 
-  const result = await exec('npx nuxi module add pinia', {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!result.success && !config.dryRun) {
-    logger.error('Failed to install @pinia/nuxt')
-    return false
-  }
-
-  const persistedInstalled = await bunInstall(['pinia-plugin-persistedstate'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!persistedInstalled && !config.dryRun) {
-    logger.error('Failed to install pinia-plugin-persistedstate')
-    return false
-  }
-
-  logger.success('@pinia/nuxt + pinia-plugin-persistedstate installed')
-  logger.dim('  → Add to nuxt.config.ts modules: "@pinia/nuxt", "pinia-plugin-persistedstate/nuxt"')
-
+export async function setupPinia(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Setting up @pinia/nuxt...')
+  // Pinia is added via nuxi module add, persistedstate is in batch install
+  // No additional file setup needed
+  logger.success('@pinia/nuxt + pinia-plugin-persistedstate configured')
   return true
 }
 

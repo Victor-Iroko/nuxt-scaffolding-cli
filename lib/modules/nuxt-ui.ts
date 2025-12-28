@@ -1,19 +1,13 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, writeFile, ensureDir, logger } from '../utils'
+import { writeFile, ensureDir, logger } from '../utils'
 
-export async function installNuxtUI(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Installing @nuxt/ui...')
+export const NUXT_UI_PACKAGES = {
+  deps: ['@nuxt/ui'],
+}
 
-  const installed = await bunInstall(['@nuxt/ui'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install @nuxt/ui')
-    return false
-  }
+export async function setupNuxtUI(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Setting up @nuxt/ui...')
 
   const cssDir = join(config.projectPath, 'app', 'assets', 'css')
   ensureDir(cssDir, { dryRun: config.dryRun })
@@ -37,10 +31,7 @@ export async function installNuxtUI(config: ScaffoldConfig): Promise<boolean> {
     dryRun: config.dryRun,
   })
 
-  logger.success('@nuxt/ui installed')
-  logger.dim('  → Add to nuxt.config.ts: modules: ["@nuxt/ui"]')
-  logger.dim('  → Add to nuxt.config.ts: css: ["~/assets/css/main.css"]')
-
+  logger.success('@nuxt/ui configured')
   return true
 }
 

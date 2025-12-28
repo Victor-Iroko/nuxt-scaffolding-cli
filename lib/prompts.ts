@@ -18,12 +18,13 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
 
   const projectName = await p.text({
     message: 'What is your project name?',
-    placeholder: basename(defaultPath),
+    placeholder: `${basename(defaultPath)} (or "." for current directory)`,
     defaultValue: basename(defaultPath),
     validate: (value) => {
       if (!value) return 'Project name is required'
+      if (value === '.') return // Allow "." for current directory
       if (!/^[a-z0-9-_]+$/i.test(value)) {
-        return 'Project name can only contain letters, numbers, hyphens, and underscores'
+        return 'Project name can only contain letters, numbers, hyphens, and underscores (or "." for current directory)'
       }
     },
   })
@@ -39,6 +40,7 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
       value: m.value,
       label: m.label,
       hint: m.hint,
+      disabled: m.disabled,
     })),
     required: false,
   })

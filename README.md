@@ -21,60 +21,63 @@ A CLI tool to scaffold production-ready Nuxt projects with modules, storage, and
 
 ## Installation
 
-### Option 1: Clone and Link (Recommended)
-
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd scaffold-cli
+cd nuxt-scaffolding-cli
 
 # Install dependencies
 bun install
+```
 
-# Link globally
+### Running the CLI
+
+After cloning, you have three options to run the tool:
+
+#### Option 1: Using `bunx` (Recommended)
+
+```bash
+bunx create-nuxt-stack
+```
+
+This works immediately without any extra setup. `bunx` executes the package directly by resolving the `bin` entry from `package.json`.
+
+#### Option 2: Link Globally
+
+If you want to use `create-nuxt-stack` as a standalone command from anywhere:
+
+```bash
+# Link the package globally
 bun link
 ```
 
-Now you can run `create-nuxt-stack` from anywhere!
+Now you can run `create-nuxt-stack` directly from any directory.
 
-> **Windows Users**: If you get a PATH error, use the `bunx` method below instead, or add Bun to your system PATH.
+> **Note**: This registers the command in Bun's global bin directory. If you get a "command not found" error, ensure `~/.bun/bin` (macOS/Linux) or Bun's global bin path (Windows: run `bun pm bin -g` to find it) is in your system PATH.
 
-### Option 2: Direct Execution
+#### Option 3: Direct Script Execution
 
 ```bash
-# Navigate to the scaffold-cli directory
-cd path/to/scaffold-cli
-
-# Run directly
 bun run scaffold.ts
+# or
+bun run scaffold
 ```
+
+This runs the script directly from the project directory.
 
 ## Usage
 
 ### Create a new project
 
-**Using linked command (macOS/Linux):**
 ```bash
 # Navigate to where you want to create the project
 cd ~/projects
 
 # Run the scaffolder
+bunx create-nuxt-stack
+
+# Or if you linked globally
 create-nuxt-stack
-```
-
-**Using bunx (works everywhere including Windows):**
-```bash
-# Navigate to where you want to create the project
-cd ~/projects
-
-# Run via bunx
-bunx --bun create-nuxt-stack
-```
-
-**Direct execution:**
-```bash
-# Run from the scaffold-cli directory
-bun run scaffold.ts
 ```
 
 ### Dry-run mode
@@ -82,10 +85,10 @@ bun run scaffold.ts
 Preview what changes will be made without actually creating files:
 
 ```bash
-create-nuxt-stack --dry-run
+bunx create-nuxt-stack --dry-run
 
-# Or with bunx
-bunx --bun create-nuxt-stack --dry-run
+# Or if linked globally
+create-nuxt-stack --dry-run
 ```
 
 ## What You'll Be Prompted For
@@ -94,11 +97,22 @@ bunx --bun create-nuxt-stack --dry-run
 The name of your project (defaults to current directory name).
 
 ### 2. Recommended Modules
+
+#### Official Nuxt Modules
 | Module | Description |
 |--------|-------------|
-| `@nuxt/ui` | Intuitive UI Library powered by Tailwind CSS |
+| `@nuxt/ui` | Intuitive UI Library powered by Tailwind CSS *(temporarily disabled)* |
 | `@nuxt/eslint` | ESLint integration with flat config |
 | `@nuxt/test-utils` | Testing utilities with Vitest |
+| `@nuxt/icon` | 200,000+ icons from Iconify |
+| `@nuxt/fonts` | Custom web fonts with performance in mind |
+| `@nuxt/scripts` | 3rd-party scripts without sacrificing performance |
+| `@nuxt/devtools` | Visual tools to understand your app better |
+| `@nuxt/hints` | Performance, security & best practice hints |
+
+#### Community Modules
+| Module | Description |
+|--------|-------------|
 | `@pinia/nuxt` | State management + persistedstate |
 | `@vueuse/nuxt` | Vue Composition Utilities |
 | `@vueuse/motion` | Animation directives |
@@ -106,7 +120,7 @@ The name of your project (defaults to current directory name).
 | `nuxt-security` | Security based on OWASP Top 10 |
 | `@nuxtjs/mdc` | Markdown components |
 
-### 3. Optional Modules
+### 3. Optional Modules (Official)
 | Module | Description |
 |--------|-------------|
 | `@nuxt/content` | File-based CMS with Markdown support |
@@ -209,30 +223,37 @@ my-project/
 }
 ```
 
-## Unlink
+## Known Issues
 
-To remove the global command:
+### @nuxt/ui temporarily disabled
+
+The `@nuxt/ui` module is currently disabled in the selection menu due to a [Bun dependency resolution issue](https://github.com/oven-sh/bun/issues/15529) where `bun install` can get stuck indefinitely at "Resolving dependencies". This is a known Bun issue, not specific to `@nuxt/ui`.
+
+**Workaround**: If you need `@nuxt/ui`, you can manually add it after scaffolding:
 
 ```bash
-cd path/to/scaffold-cli
+# After scaffolding completes, add @nuxt/ui manually
+bun add @nuxt/ui
+```
+
+This option will be re-enabled once the Bun issue is resolved.
+
+## Unlink
+
+To remove the globally linked command:
+
+```bash
+cd path/to/nuxt-scaffolding-cli
 bun unlink
 ```
 
 ## Troubleshooting
 
-### Windows: "bun is not installed in %PATH%"
+### "command not found" after `bun link`
 
-If you see this error when running `create-nuxt-stack`, use one of these alternatives:
-
-1. **Use bunx**: Run `bunx --bun create-nuxt-stack` instead
-2. **Direct execution**: Navigate to the scaffold-cli folder and run `bun run scaffold.ts`
-3. **Add Bun to PATH**: Ensure Bun's install directory is in your system PATH
-
-### Command not found after bun link
-
-Make sure Bun's global bin directory is in your PATH:
-- **macOS/Linux**: `~/.bun/bin`
-- **Windows**: Check `bun pm bin -g` for the location
+Ensure Bun's global bin directory is in your PATH:
+- **macOS/Linux**: Add `export PATH="$HOME/.bun/bin:$PATH"` to your shell profile
+- **Windows**: Run `bun pm bin -g` to find the path, then add it to your system PATH
 
 ## Development
 

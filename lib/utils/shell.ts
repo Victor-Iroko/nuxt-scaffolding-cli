@@ -64,20 +64,37 @@ export async function bunInstall(
   return result.success
 }
 
+export async function bunInstallWithProgress(
+  packages: string[],
+  options: ShellOptions & { dev?: boolean } = {}
+): Promise<boolean> {
+  const { dev = false, cwd, dryRun = false } = options
+  const devFlag = dev ? '-d' : ''
+  const command = `bun add ${devFlag} ${packages.join(' ')}`.trim()
+
+  if (dryRun) {
+    logger.command(command)
+    return true
+  }
+
+  logger.command(command)
+
+  try {
+    await $`${{ raw: command }}`.cwd(cwd ?? process.cwd())
+    return true
+  } catch (error) {
+    const err = error as Error
+    logger.error(err.message)
+    return false
+  }
+}
+
 export async function bunRun(
   script: string,
   options: ShellOptions = {}
 ): Promise<boolean> {
   const command = `bun run ${script}`
   const result = await exec(command, options)
-  return result.success
-}
-
-export async function npxCommand(
-  command: string,
-  options: ShellOptions = {}
-): Promise<boolean> {
-  const result = await exec(`npx ${command}`, options)
   return result.success
 }
 

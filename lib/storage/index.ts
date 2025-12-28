@@ -1,11 +1,41 @@
 import type { ScaffoldConfig } from '../types'
 import { addScriptsToPackageJson, logger } from '../utils'
 import { setupDocker } from './docker'
-import { setupDrizzle } from './drizzle'
-import { setupPrisma } from './prisma'
-import { setupEnv } from './env'
+import { setupDrizzle, DRIZZLE_PACKAGES } from './drizzle'
+import { setupPrisma, PRISMA_PACKAGES } from './prisma'
+import { setupEnv, ENV_PACKAGES } from './env'
 
 export { setupDocker, setupDrizzle, setupPrisma, setupEnv }
+export { DRIZZLE_PACKAGES, PRISMA_PACKAGES, ENV_PACKAGES }
+
+export interface StoragePackages {
+  deps: string[]
+  devDeps: string[]
+}
+
+export function collectStoragePackages(config: ScaffoldConfig): StoragePackages {
+  const deps: string[] = []
+  const devDeps: string[] = []
+
+  // Env packages are needed if any storage is selected
+  if (config.storage.length > 0) {
+    deps.push(...ENV_PACKAGES.deps)
+    devDeps.push(...ENV_PACKAGES.devDeps)
+  }
+
+  // ORM packages
+  if (config.storage.includes('postgres')) {
+    if (config.orm === 'drizzle') {
+      deps.push(...DRIZZLE_PACKAGES.deps)
+      devDeps.push(...DRIZZLE_PACKAGES.devDeps)
+    } else if (config.orm === 'prisma') {
+      deps.push(...PRISMA_PACKAGES.deps)
+      devDeps.push(...PRISMA_PACKAGES.devDeps)
+    }
+  }
+
+  return { deps, devDeps }
+}
 
 export async function setupStorage(config: ScaffoldConfig): Promise<boolean> {
   logger.title('Setting up Storage')

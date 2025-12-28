@@ -1,19 +1,9 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { exec, writeFile, addScriptsToPackageJson, logger } from '../utils'
+import { writeFile, addScriptsToPackageJson, logger } from '../utils'
 
-export async function installEslint(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Installing @nuxt/eslint...')
-
-  const result = await exec('npx nuxi module add eslint', {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!result.success && !config.dryRun) {
-    logger.error('Failed to install @nuxt/eslint')
-    return false
-  }
+export async function setupEslint(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Setting up @nuxt/eslint...')
 
   const eslintConfig = `import withNuxt from './.nuxt/eslint.config.mjs'
 
@@ -37,7 +27,7 @@ export default withNuxt({
     { dryRun: config.dryRun }
   )
 
-  logger.success('@nuxt/eslint installed')
+  logger.success('@nuxt/eslint configured')
   return true
 }
 

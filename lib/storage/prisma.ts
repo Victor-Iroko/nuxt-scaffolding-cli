@@ -1,35 +1,19 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, exec, writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+import { exec, writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+
+export const PRISMA_PACKAGES = {
+  deps: ['@prisma/client'],
+  devDeps: ['prisma'],
+}
 
 export async function setupPrisma(config: ScaffoldConfig): Promise<boolean> {
   logger.step('Setting up Prisma ORM...')
 
-  const installed = await bunInstall(['@prisma/client'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install Prisma client')
-    return false
-  }
-
-  const devInstalled = await bunInstall(['prisma'], {
-    cwd: config.projectPath,
-    dev: true,
-    dryRun: config.dryRun,
-  })
-
-  if (!devInstalled && !config.dryRun) {
-    logger.error('Failed to install Prisma dev dependencies')
-    return false
-  }
-
   if (!config.dryRun) {
-    await exec('npx prisma init', { cwd: config.projectPath })
+    await exec('bunx prisma init', { cwd: config.projectPath })
   } else {
-    logger.command('npx prisma init')
+    logger.command('bunx prisma init')
   }
 
   const prismaSchema = `generator client {

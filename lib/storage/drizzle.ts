@@ -1,30 +1,14 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { bunInstall, writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+import { writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+
+export const DRIZZLE_PACKAGES = {
+  deps: ['drizzle-orm', 'drizzle-zod'],
+  devDeps: ['drizzle-kit', 'drizzle-seed', 'postgres'],
+}
 
 export async function setupDrizzle(config: ScaffoldConfig): Promise<boolean> {
   logger.step('Setting up Drizzle ORM...')
-
-  const installed = await bunInstall(['drizzle-orm', 'drizzle-zod'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install Drizzle ORM')
-    return false
-  }
-
-  const devInstalled = await bunInstall(['drizzle-kit', 'drizzle-seed', 'postgres'], {
-    cwd: config.projectPath,
-    dev: true,
-    dryRun: config.dryRun,
-  })
-
-  if (!devInstalled && !config.dryRun) {
-    logger.error('Failed to install Drizzle dev dependencies')
-    return false
-  }
 
   const drizzleConfig = `import { defineConfig } from 'drizzle-kit'
 
@@ -80,19 +64,34 @@ export const db = drizzle(process.env.DATABASE_URL!, {
     dryRun: config.dryRun,
   })
 
-  const seedFile = `// import { db } from './utils/db'
-// import * as schema from './database/schema'
+  const seedFile = `import { reset, seed } from 'drizzle-seed'
+import { db } from '../utils/db'
+import * as schema from './schema'
 
-async function seed() {
+async function main() {
   console.log('🌱 Seeding database...')
-  
-  // Add your seed logic here
-  // await db.insert(schema.users).values([...])
-  
+
+  // Reset all tables before seeding
+  await reset(db, schema)
+
+  // Seed with drizzle-seed
+  // Customize the refine function based on your schema
+  await seed(db, schema, { count: 20, seed: 234 }).refine((f) => ({
+    // Example: customize seeding for specific tables
+    // users: {
+    //   columns: {
+    //     name: f.fullName(),
+    //     age: f.int({ minValue: 18, maxValue: 80 }),
+    //     email: f.email(),
+    //   },
+    //   count: 10,
+    // },
+  }))
+
   console.log('✅ Seeding complete!')
 }
 
-seed().catch(console.error)
+main().catch(console.error)
 `
 
   writeFile(join(config.projectPath, 'server', 'database', 'seed.ts'), seedFile, {

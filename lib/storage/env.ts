@@ -1,6 +1,11 @@
 import { join } from 'path'
 import type { ScaffoldConfig, StorageOption } from '../types'
-import { bunInstall, writeFile, ensureDir, logger } from '../utils'
+import { writeFile, ensureDir, logger } from '../utils'
+
+export const ENV_PACKAGES = {
+  deps: ['zod'],
+  devDeps: ['dotenv-cli'],
+}
 
 function generateEnvTemplate(storage: StorageOption[]): string {
   let env = `# App Configuration
@@ -82,7 +87,7 @@ export const envSchema = z.object({
   POSTGRES_HOST: z.string().default('localhost'),
   POSTGRES_PASSWORD: z.string().min(1),
   POSTGRES_DB: z.string().min(1),
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
 `
   }
 
@@ -91,14 +96,14 @@ export const envSchema = z.object({
   // MongoDB
   MONGO_INITDB_ROOT_USERNAME: z.string().min(1),
   MONGO_INITDB_ROOT_PASSWORD: z.string().min(1),
-  MONGO_URL: z.string().url().optional(),
+  MONGO_URL: z.url().optional(),
 `
   }
 
   if (storage.includes('minio')) {
     schema += `
   // MinIO / S3
-  S3_ENDPOINT: z.string().url().optional(),
+  S3_ENDPOINT: z.url().optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
   S3_BUCKET: z.string().optional(),
@@ -117,7 +122,7 @@ export const envSchema = z.object({
   if (storage.includes('qdrant')) {
     schema += `
   // Qdrant
-  QDRANT_URL: z.string().url().default('http://localhost:6333'),
+  QDRANT_URL: z.url().default('http://localhost:6333'),
   QDRANT_API_KEY: z.string().optional(),
 `
   }
@@ -138,27 +143,6 @@ export async function setupEnv(config: ScaffoldConfig): Promise<boolean> {
 
   logger.step('Setting up environment variables...')
 
-  const installed = await bunInstall(['zod'], {
-    cwd: config.projectPath,
-    dryRun: config.dryRun,
-  })
-
-  if (!installed && !config.dryRun) {
-    logger.error('Failed to install zod')
-    return false
-  }
-
-  const devInstalled = await bunInstall(['dotenv-cli'], {
-    cwd: config.projectPath,
-    dev: true,
-    dryRun: config.dryRun,
-  })
-
-  if (!devInstalled && !config.dryRun) {
-    logger.error('Failed to install dotenv-cli')
-    return false
-  }
-
   const envTemplate = generateEnvTemplate(config.storage)
   writeFile(join(config.projectPath, '.env.example'), envTemplate, {
     dryRun: config.dryRun,
@@ -176,15 +160,26 @@ export async function setupEnv(config: ScaffoldConfig): Promise<boolean> {
     { dryRun: config.dryRun }
   )
 
-  const envValidatePlugin = `import { envSchema } from '~~/shared/utils/env-schema'
+  const envValidatePlugin = `import { z } from 'zod'
+import { envSchema } from '~~/shared/utils/env-schema'
 
 export default defineNitroPlugin(() => {
   const result = envSchema.safeParse(process.env)
   
   if (!result.success) {
-    console.error('❌ Invalid environment variables:')
-    console.error(result.error.flatten().fieldErrors)
-    throw new Error('Invalid environment variables')
+    const prettyError = z.prettifyError(result.error)
+    
+    if (import.meta.dev) {
+      console.error('❌ Invalid environment variables:')
+      console.error(prettyError)
+      return
+    }
+    
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Invalid environment variables',
+      message: prettyError,
+    })
   }
   
   console.log('✅ Environment variables validated')

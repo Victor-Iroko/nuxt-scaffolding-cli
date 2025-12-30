@@ -470,6 +470,10 @@ async function main(): Promise<void> {
     await createTestDirectories(normalizedConfig)
     await createGitHubWorkflows(normalizedConfig)
 
+    // Step 10: Run postinstall
+    logger.step('Running postinstall...')
+    await exec('bun postinstall', { cwd: normalizedConfig.projectPath, dryRun: normalizedConfig.dryRun })
+
     logger.success('Project scaffolded successfully!')
 
     const nextSteps = [
@@ -508,7 +512,9 @@ async function main(): Promise<void> {
         pc.dim('Next steps:\n') +
         nextSteps +
         authMessage +
-        '\n'
+        '\n\n' +
+        pc.bold('🤖 To configure AI assistance, run:\n') +
+        pc.cyan('  opencode init <detailed description of your application>\n')
     )
   } catch (error) {
     logger.error((error as Error).message)

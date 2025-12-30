@@ -143,9 +143,7 @@ export const authClient = createAuthClient()
 }
 
 function generateAuthRouteHandler(): string {
-  return `import { auth } from '~/server/utils/auth'
-
-export default defineEventHandler((event) => {
+  return `export default defineEventHandler((event) => {
   return auth.handler(toWebRequest(event))
 })
 `

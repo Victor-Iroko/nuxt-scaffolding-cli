@@ -1,6 +1,6 @@
-import { join } from 'path'
-import type { ScaffoldConfig } from '../../types'
-import { writeFile, ensureDir, logger } from '../../utils'
+import { join } from "path";
+import type { ScaffoldConfig } from "../../types";
+import { writeFile, ensureDir, logger } from "../../utils";
 
 const ERROR_HANDLING_CONTENT = `/**
  * Go-style error handling pattern
@@ -8,7 +8,7 @@ const ERROR_HANDLING_CONTENT = `/**
  */
 export async function catchError<T>(
   promiseOrValue: Promise<T> | T,
-  errorsToCatch?: Array<new (...args: any[]) => Error>
+  errorsToCatch?: Array<new (...args: unknown[]) => Error>
 ): Promise<[Error | undefined, T | undefined]> {
   try {
     const data = await Promise.resolve(promiseOrValue)
@@ -53,31 +53,41 @@ export async function tryCatch<T, E = Error>(
     return err(error as E)
   }
 }
-`
+`;
 
-export async function createErrorHandlingUtility(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Creating error handling utilities...')
+export async function createErrorHandlingUtility(
+  config: ScaffoldConfig
+): Promise<boolean> {
+  logger.step("Creating error handling utilities...");
 
-  ensureDir(join(config.projectPath, 'shared', 'utils'), { dryRun: config.dryRun })
+  ensureDir(join(config.projectPath, "shared", "utils"), {
+    dryRun: config.dryRun,
+  });
 
   writeFile(
-    join(config.projectPath, 'shared', 'utils', 'error-handling.ts'),
+    join(config.projectPath, "shared", "utils", "error-handling.ts"),
     ERROR_HANDLING_CONTENT,
     { dryRun: config.dryRun }
-  )
+  );
 
-  logger.success('Error handling utilities created')
-  return true
+  logger.success("Error handling utilities created");
+  return true;
 }
 
-export async function createSharedUtilsIndex(config: ScaffoldConfig): Promise<boolean> {
+export async function createSharedUtilsIndex(
+  config: ScaffoldConfig
+): Promise<boolean> {
   const indexContent = `export * from './error-handling'
 export * from './env-schema'
-`
+`;
 
-  writeFile(join(config.projectPath, 'shared', 'utils', 'index.ts'), indexContent, {
-    dryRun: config.dryRun,
-  })
+  writeFile(
+    join(config.projectPath, "shared", "utils", "index.ts"),
+    indexContent,
+    {
+      dryRun: config.dryRun,
+    }
+  );
 
-  return true
+  return true;
 }

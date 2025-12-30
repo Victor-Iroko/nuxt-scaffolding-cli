@@ -1,25 +1,28 @@
 # create-nuxt-stack
 
-A CLI tool to scaffold production-ready Nuxt projects with modules, storage, and development tooling.
+A CLI tool to scaffold production-ready Nuxt projects with modules, storage, authentication, and development tooling.
 
 ## Features
 
-- **Interactive prompts** - Select only the modules and storage you need
-- **Modular architecture** - Pick from recommended and optional Nuxt modules
+- **Interactive prompts** - Select only the modules, storage, and auth solutions you need
+- **Modular architecture** - Pick from recommended community Nuxt modules
+- **Authentication** - Secure authentication with [Better Auth](https://www.better-auth.com/) (Email/Password, OAuth)
 - **Storage options** - PostgreSQL, MongoDB, MinIO, Redis, Qdrant with Docker Compose
-- **ORM support** - Choose between Drizzle ORM or Prisma
+- **ORM support** - Choose between [Drizzle ORM](https://orm.drizzle.team/) or [Prisma](https://www.prisma.io/)
 - **Dev tooling** - Prettier, Husky, lint-staged, commitlint pre-configured
+- **Auto-configuration** - Official modules (`@nuxt/ui`, `@nuxt/eslint`, `@nuxt/test-utils`) are automatically configured if installed
 - **CI/CD ready** - GitHub Actions workflows included
 - **Type-safe** - Zod-validated environment variables
-- **Dry-run mode** - Preview changes before applying
+- **Fast setup** - Batched dependency installation
+- **Dry-run mode** - Preview changes before applying them
 
 ## Prerequisites
 
 - [Bun](https://bun.sh) v1.0 or later
 - [Git](https://git-scm.com/)
-- [Docker](https://www.docker.com/) (optional, for storage)
+- [Docker](https://www.docker.com/) (optional, for storage services)
 
-## Installation
+## Quick Start
 
 ```bash
 # Clone the repository
@@ -28,118 +31,100 @@ cd nuxt-scaffolding-cli
 
 # Install dependencies
 bun install
-```
-
-### Running the CLI
-
-After cloning, you have three options to run the tool:
-
-#### Option 1: Using `bunx` (Recommended)
-
-```bash
-bunx create-nuxt-stack
-```
-
-This works immediately without any extra setup. `bunx` executes the package directly by resolving the `bin` entry from `package.json`.
-
-#### Option 2: Link Globally
-
-If you want to use `create-nuxt-stack` as a standalone command from anywhere:
-
-```bash
-# Link the package globally
-bun link
-```
-
-Now you can run `create-nuxt-stack` directly from any directory.
-
-> **Note**: This registers the command in Bun's global bin directory. If you get a "command not found" error, ensure `~/.bun/bin` (macOS/Linux) or Bun's global bin path (Windows: run `bun pm bin -g` to find it) is in your system PATH.
-
-#### Option 3: Direct Script Execution
-
-```bash
-bun run scaffold.ts
-# or
-bun run scaffold
-```
-
-This runs the script directly from the project directory.
-
-## Usage
-
-### Create a new project
-
-```bash
-# Navigate to where you want to create the project
-cd ~/projects
 
 # Run the scaffolder
 bunx create-nuxt-stack
+```
 
-# Or if you linked globally
+## Running the CLI
+
+After cloning, you have three options:
+
+### Option 1: Using `bunx` (Recommended)
+
+```bash
+bunx create-nuxt-stack
+```
+
+### Option 2: Link Globally
+
+```bash
+bun link
 create-nuxt-stack
 ```
 
-### Dry-run mode
+> **Note**: Ensure `~/.bun/bin` (macOS/Linux) or Bun's global bin path (Windows: `bun pm bin -g`) is in your PATH.
 
-Preview what changes will be made without actually creating files:
+### Option 3: Direct Script Execution
+
+```bash
+bun run scaffold.ts
+```
+
+## CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Preview changes without creating files |
 
 ```bash
 bunx create-nuxt-stack --dry-run
-
-# Or if linked globally
-create-nuxt-stack --dry-run
 ```
 
-## What You'll Be Prompted For
+## Interactive Prompts
 
 ### 1. Project Name
-The name of your project (defaults to current directory name).
 
-### 2. Recommended Modules
+The name of your project. Use `.` to scaffold in the current directory.
 
-#### Official Nuxt Modules
-| Module | Description |
-|--------|-------------|
-| `@nuxt/ui` | Intuitive UI Library powered by Tailwind CSS *(temporarily disabled)* |
-| `@nuxt/eslint` | ESLint integration with flat config |
-| `@nuxt/test-utils` | Testing utilities with Vitest |
-| `@nuxt/icon` | 200,000+ icons from Iconify |
-| `@nuxt/fonts` | Custom web fonts with performance in mind |
-| `@nuxt/scripts` | 3rd-party scripts without sacrificing performance |
-| `@nuxt/devtools` | Visual tools to understand your app better |
-| `@nuxt/hints` | Performance, security & best practice hints |
+### 2. Community Modules
 
-#### Community Modules
 | Module | Description |
 |--------|-------------|
 | `@pinia/nuxt` | State management + persistedstate |
 | `@vueuse/nuxt` | Vue Composition Utilities |
 | `@vueuse/motion` | Animation directives |
 | `@nuxtjs/seo` | Complete SEO solution |
-| `nuxt-security` | Security based on OWASP Top 10 |
+| `nuxt-security` | Security headers based on OWASP Top 10 |
 | `@nuxtjs/mdc` | Markdown components |
 
-### 3. Optional Modules (Official)
-| Module | Description |
-|--------|-------------|
-| `@nuxt/content` | File-based CMS with Markdown support |
-| `@nuxt/image` | Image optimization with providers |
+> **Note**: Official modules like `@nuxt/ui`, `@nuxt/eslint`, and `@nuxt/test-utils` are automatically configured if you install them via the Nuxt CLI setup.
 
-### 4. Storage Options (Multi-select)
+### 3. Storage Options
+
 | Storage | Description |
 |---------|-------------|
 | PostgreSQL | Relational database |
 | MongoDB | Document database |
 | MinIO | S3-compatible object storage |
-| Redis | In-memory cache/store |
-| Qdrant | Vector database for AI |
+| Redis | In-memory cache/session store |
+| Qdrant | Vector database for AI/embeddings |
 
-### 5. ORM Selection (if PostgreSQL selected)
+### 4. ORM Selection
+
+Shown when PostgreSQL is selected:
+
 | ORM | Description |
 |-----|-------------|
-| Drizzle | TypeScript ORM with Bun native support |
+| Drizzle | TypeScript ORM with Bun native driver support |
 | Prisma | Next-generation Node.js ORM |
+| None | Skip ORM setup |
+
+### 5. Authentication
+
+| Option | Description |
+|--------|-------------|
+| Better Auth | Full-featured auth with sessions, OAuth support |
+| None | Skip auth setup |
+
+### 6. Email Service
+
+Shown when Better Auth is selected:
+
+| Service | Description |
+|---------|-------------|
+| Nodemailer | Email via Gmail SMTP |
+| None | Skip email setup |
 
 ## Generated Project Structure
 
@@ -157,103 +142,142 @@ my-project/
 │   └── settings.json
 ├── app/
 │   ├── app.vue
-│   └── assets/
-│       └── css/
-│           └── main.css
-├── content/                    # If @nuxt/content selected
-│   └── index.md
+│   ├── assets/css/main.css
+│   ├── middleware/                 # If Better Auth
+│   │   └── auth-middleware.global.ts
+│   ├── plugins/                    # If Better Auth + Pinia
+│   │   └── auth-plugin.ts
+│   ├── stores/                     # If Better Auth + Pinia
+│   │   └── auth-store.ts
+│   └── utils/
+│       └── auth-client.ts          # If Better Auth
 ├── server/
+│   ├── api/auth/
+│   │   └── [...all].ts             # If Better Auth
 │   ├── database/
-│   │   ├── schema/
-│   │   │   └── index.ts
-│   │   ├── migrations/
-│   │   └── seed.ts
+│   │   ├── schema/index.ts         # If Drizzle
+│   │   ├── migrations/             # If Drizzle
+│   │   └── seed.ts                 # If Drizzle
 │   ├── plugins/
 │   │   └── env-validate.ts
+│   ├── types/
+│   │   └── h3.ts                   # If Better Auth
 │   └── utils/
-│       └── db.ts
-├── shared/
-│   └── utils/
-│       ├── env-schema.ts
-│       ├── error-handling.ts
-│       └── index.ts
+│       ├── auth.ts                 # If Better Auth
+│       ├── db.ts                   # If ORM selected
+│       ├── email.ts                # If Nodemailer
+│       └── session.ts              # If Better Auth
+├── shared/utils/
+│   ├── env-schema.ts
+│   ├── error-handling.ts
+│   └── index.ts
 ├── tests/
 │   ├── e2e/
 │   ├── nuxt/
 │   └── unit/
-│       └── example.test.ts
 ├── .env
 ├── .env.example
 ├── .prettierrc
 ├── .prettierignore
 ├── commitlint.config.js
-├── content.config.ts           # If @nuxt/content selected
-├── docker-compose.yml          # If storage selected
-├── drizzle.config.ts           # If Drizzle selected
-├── eslint.config.mjs
+├── docker-compose.yml              # If storage selected
+├── drizzle.config.ts               # If Drizzle
 ├── nuxt.config.ts
-├── package.json
-└── vitest.config.ts
+└── package.json
 ```
 
 ## Generated Scripts
 
+The following scripts are added to your `package.json`:
+
+### Core
+
 ```json
 {
-  "scripts": {
-    "dev": "nuxt dev",
-    "build": "nuxt build",
-    "dev:all": "concurrently -k -n \"APP,DB,STUDIO\" ...",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --check .",
-    "format:fix": "prettier --write .",
-    "test": "vitest --passWithNoTests",
-    "test:unit": "vitest --project unit",
-    "test:watch": "vitest --watch",
-    "db:start": "docker compose up -d",
-    "db:stop": "docker compose stop",
-    "db:down": "docker compose down",
-    "db:destroy": "docker compose down -v",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "dotenv -e .env -- drizzle-kit migrate",
-    "db:seed": "bun run ./server/database/seed.ts",
-    "db:studio": "dotenv -e .env -- drizzle-kit studio"
-  }
+  "dev": "nuxt dev",
+  "build": "nuxt build",
+  "dev:all": "concurrently -k -n \"APP,DB,STUDIO\" -c \"blue,green,magenta\" \"bun --bun run dev\" \"docker compose up\" \"bun run db:studio\""
 }
 ```
 
-## Known Issues
+### Linting & Formatting
 
-### @nuxt/ui temporarily disabled
-
-The `@nuxt/ui` module is currently disabled in the selection menu due to a [Bun dependency resolution issue](https://github.com/oven-sh/bun/issues/15529) where `bun install` can get stuck indefinitely at "Resolving dependencies". This is a known Bun issue, not specific to `@nuxt/ui`.
-
-**Workaround**: If you need `@nuxt/ui`, you can manually add it after scaffolding:
-
-```bash
-# After scaffolding completes, add @nuxt/ui manually
-bun add @nuxt/ui
+```json
+{
+  "lint": "eslint .",
+  "lint:fix": "eslint . --fix",
+  "format": "prettier --check .",
+  "format:fix": "prettier --write ."
+}
 ```
 
-This option will be re-enabled once the Bun issue is resolved.
+### Testing
 
-## Unlink
+```json
+{
+  "test": "vitest --passWithNoTests",
+  "test:unit": "vitest --project unit",
+  "test:watch": "vitest --watch"
+}
+```
 
-To remove the globally linked command:
+### Database (if storage selected)
+
+```json
+{
+  "db:start": "docker compose up -d",
+  "db:stop": "docker compose stop",
+  "db:down": "docker compose down",
+  "db:destroy": "docker compose down -v",
+  "db:generate": "drizzle-kit generate",
+  "db:migrate": "dotenv -e .env -- drizzle-kit migrate",
+  "db:seed": "bun run ./server/database/seed.ts",
+  "db:studio": "dotenv -e .env -- drizzle-kit studio"
+}
+```
+
+## Post-Scaffold Setup
+
+### Better Auth
+
+If you selected Better Auth with an ORM, generate the auth schema:
 
 ```bash
-cd path/to/nuxt-scaffolding-cli
-bun unlink
+# Generate auth tables
+bunx @better-auth/cli generate --config ./server/utils/auth.ts --output ./server/database/schema
+
+# Run migrations
+bun run db:generate && bun run db:migrate
 ```
+
+### Gmail SMTP (Nodemailer)
+
+If you selected Nodemailer for email:
+
+1. Enable 2FA on your Google account
+2. Generate an App Password: https://myaccount.google.com/apppasswords
+3. Add to your `.env` file:
+   ```
+   GMAIL_USER=your-email@gmail.com
+   GMAIL_PASS=your-app-password
+   ```
 
 ## Troubleshooting
 
 ### "command not found" after `bun link`
 
 Ensure Bun's global bin directory is in your PATH:
+
 - **macOS/Linux**: Add `export PATH="$HOME/.bun/bin:$PATH"` to your shell profile
 - **Windows**: Run `bun pm bin -g` to find the path, then add it to your system PATH
+
+### Husky hooks not running
+
+Ensure the hooks are executable:
+
+```bash
+chmod +x .husky/pre-commit .husky/commit-msg
+```
 
 ## Development
 
@@ -261,11 +285,22 @@ Ensure Bun's global bin directory is in your PATH:
 # Install dependencies
 bun install
 
-# Run in development
+# Run the CLI locally
 bun run scaffold.ts
+
+# Dry run (preview mode)
+bun run scaffold:dry
 
 # Type check
 bunx tsc --noEmit
+```
+
+## Unlink
+
+To remove the globally linked command:
+
+```bash
+bun unlink
 ```
 
 ## License

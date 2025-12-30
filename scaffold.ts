@@ -150,16 +150,15 @@ async function updateNuxtConfig(config: ScaffoldConfig): Promise<boolean> {
   logger.step('Updating nuxt.config.ts...')
 
   const configPath = resolve(config.projectPath, 'nuxt.config.ts')
-  const { modules, css, securityOptions } = getModuleConfigs(config)
+  const { css, securityOptions } = getModuleConfigs(config)
 
-  // If no additional modules/config needed, skip
-  if (modules.length === 0 && css.length === 0 && !securityOptions && !config.storage.includes('redis')) {
+  // If no additional config needed, skip
+  if (css.length === 0 && !securityOptions && !config.storage.includes('redis')) {
     logger.dim('  No additional config needed')
     return true
   }
 
   if (config.dryRun) {
-    logger.dim('  Would add modules: ' + modules.join(', '))
     if (css.length > 0) logger.dim('  Would add css: ' + css.join(', '))
     if (securityOptions) logger.dim('  Would add security config')
     if (config.storage.includes('redis')) logger.dim('  Would add redis nitro config')
@@ -171,35 +170,6 @@ async function updateNuxtConfig(config: ScaffoldConfig): Promise<boolean> {
   if (!existingConfig) {
     logger.error('nuxt.config.ts not found')
     return false
-  }
-
-  // Add modules to existing modules array
-  if (modules.length > 0) {
-    const modulesStr = modules.map(m => `'${m}'`).join(', ')
-    
-    // Check if modules array exists
-    if (existingConfig.includes('modules: [')) {
-      // Append to existing modules array - find the closing bracket
-      existingConfig = existingConfig.replace(
-        /modules:\s*\[([\s\S]*?)\]/,
-        (match, content) => {
-          const trimmedContent = content.trim()
-          if (trimmedContent) {
-            // Has existing modules, append with comma
-            return `modules: [${content.trimEnd()}, ${modulesStr}]`
-          } else {
-            // Empty modules array
-            return `modules: [${modulesStr}]`
-          }
-        }
-      )
-    } else {
-      // No modules array, add one after devtools line
-      existingConfig = existingConfig.replace(
-        /(devtools:\s*\{[^}]*\},?)/,
-        `$1\n  modules: [${modulesStr}],`
-      )
-    }
   }
 
   // Add CSS if needed

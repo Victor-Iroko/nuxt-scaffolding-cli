@@ -7,12 +7,10 @@ import { setupEslint, ESLINT_CONFIG } from './eslint'
 import { setupTestUtils, TEST_UTILS_CONFIG } from './test-utils'
 
 // Non-official module setup functions
-import { setupPinia, PINIA_PACKAGES, PINIA_CONFIG } from './pinia'
-import { VUEUSE_CONFIG } from './vueuse'
-import { MOTION_PACKAGES, MOTION_CONFIG } from './motion'
-import { SEO_CONFIG } from './seo'
+import { setupPinia, PINIA_PACKAGES } from './pinia'
+import { MOTION_PACKAGES } from './motion'
 import { SECURITY_CONFIG } from './security'
-import { MDC_PACKAGES, MDC_CONFIG } from './mdc'
+import { MDC_PACKAGES } from './mdc'
 
 export {
   setupNuxtUI,
@@ -22,12 +20,6 @@ export {
   NUXT_UI_CONFIG,
   ESLINT_CONFIG,
   TEST_UTILS_CONFIG,
-  PINIA_CONFIG,
-  VUEUSE_CONFIG,
-  MOTION_CONFIG,
-  SEO_CONFIG,
-  SECURITY_CONFIG,
-  MDC_CONFIG,
 }
 
 // Non-official modules that need `nuxt module add` after project init
@@ -129,43 +121,21 @@ export async function installModules(config: ScaffoldConfig): Promise<boolean> {
 }
 
 export function getModuleConfigs(config: ScaffoldConfig): {
-  modules: string[]
   css: string[]
   securityOptions?: Record<string, unknown>
 } {
-  const modules: string[] = []
   const css: string[] = []
   let securityOptions: Record<string, unknown> | undefined
 
-  // Only add non-official modules that we manage
-  // Official modules are already configured by Nuxt CLI
-
-  if (config.modules.includes('pinia')) {
-    modules.push(...PINIA_CONFIG.modules)
-  }
-
-  if (config.modules.includes('vueuse')) {
-    modules.push(VUEUSE_CONFIG.module)
-  }
-
-  if (config.modules.includes('motion')) {
-    modules.push(MOTION_CONFIG.module)
-  }
-
-  if (config.modules.includes('seo')) {
-    modules.push(SEO_CONFIG.module)
-  }
+  // Modules are already added to nuxt.config.ts by `nuxt module add` in setupModules()
+  // and by setupPinia() for pinia-plugin-persistedstate
+  // Here we only return additional config that nuxt module add doesn't handle
 
   if (config.modules.includes('security')) {
-    modules.push(SECURITY_CONFIG.module)
     securityOptions = SECURITY_CONFIG.options
   }
 
-  if (config.modules.includes('mdc')) {
-    modules.push(MDC_CONFIG.module)
-  }
-
-  return { modules, css, securityOptions }
+  return { css, securityOptions }
 }
 
 // Setup official modules that were installed by Nuxt CLI

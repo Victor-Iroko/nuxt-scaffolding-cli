@@ -1,13 +1,26 @@
 import { join } from 'path'
 import type { ScaffoldConfig } from '../types'
-import { writeFile, ensureDir, addScriptsToPackageJson, logger } from '../utils'
+import { writeFile, ensureDir, addScriptsToPackageJson, bunInstallWithProgress, logger } from '../utils'
 
 export const TEST_UTILS_PACKAGES = {
-  devDeps: ['@nuxt/test-utils', 'vitest', '@vue/test-utils', 'happy-dom'],
+  devDeps: ['vitest', '@vue/test-utils', 'happy-dom', 'playwright-core'],
 }
 
 export async function setupTestUtils(config: ScaffoldConfig): Promise<boolean> {
   logger.step('Setting up @nuxt/test-utils...')
+
+  // Install required dev dependencies
+  if (TEST_UTILS_PACKAGES.devDeps.length > 0) {
+    logger.dim(`  Installing: ${TEST_UTILS_PACKAGES.devDeps.join(', ')}`)
+    const installed = await bunInstallWithProgress(TEST_UTILS_PACKAGES.devDeps, {
+      cwd: config.projectPath,
+      dev: true,
+      dryRun: config.dryRun,
+    })
+    if (!installed && !config.dryRun) {
+      logger.warn('Failed to install test-utils dependencies')
+    }
+  }
 
   const vitestConfig = `import { defineVitestConfig } from '@nuxt/test-utils/config'
 

@@ -1,5 +1,5 @@
 import { join } from 'path'
-import type { ScaffoldConfig, StorageOption } from '../types'
+import type { ScaffoldConfig, StorageOption, AuthChoice, EmailServiceChoice } from '../types'
 import { writeFile, ensureDir, logger } from '../utils'
 
 export const ENV_PACKAGES = {
@@ -7,11 +7,31 @@ export const ENV_PACKAGES = {
   devDeps: ['dotenv-cli'],
 }
 
-function generateEnvTemplate(storage: StorageOption[]): string {
+function generateEnvTemplate(storage: StorageOption[], auth: AuthChoice, emailService: EmailServiceChoice): string {
   let env = `# App Configuration
 NODE_ENV=development
 
 `
+
+  if (auth === 'better-auth') {
+    env += `# Better Auth
+BETTER_AUTH_SECRET=your-secret-key-min-32-chars-here
+BETTER_AUTH_URL=http://localhost:3000
+
+# Google OAuth (optional)
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
+
+`
+  }
+
+  if (emailService === 'nodemailer') {
+    env += `# Gmail SMTP (for Nodemailer)
+GMAIL_USER=
+GMAIL_PASS=
+
+`
+  }
 
   if (storage.includes('postgres')) {
     env += `# PostgreSQL
@@ -73,12 +93,32 @@ QDRANT_API_KEY=
   return env.trim() + '\n'
 }
 
-function generateEnvSchema(storage: StorageOption[]): string {
+function generateEnvSchema(storage: StorageOption[], auth: AuthChoice, emailService: EmailServiceChoice): string {
   let schema = `import { z } from 'zod'
 
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 `
+
+  if (auth === 'better-auth') {
+    schema += `
+  // Better Auth
+  BETTER_AUTH_SECRET: z.string().min(32),
+  BETTER_AUTH_URL: z.url(),
+
+  // Google OAuth (optional)
+  // GOOGLE_CLIENT_ID: z.string().optional(),
+  // GOOGLE_CLIENT_SECRET: z.string().optional(),
+`
+  }
+
+  if (emailService === 'nodemailer') {
+    schema += `
+  // Gmail SMTP
+  GMAIL_USER: z.string().email().optional(),
+  GMAIL_PASS: z.string().optional(),
+`
+  }
 
   if (storage.includes('postgres')) {
     schema += `
@@ -136,14 +176,16 @@ export type Env = z.infer<typeof envSchema>
 }
 
 export async function setupEnv(config: ScaffoldConfig): Promise<boolean> {
-  if (config.storage.length === 0) {
-    logger.dim('No storage options selected, skipping env setup')
+  const needsEnv = config.storage.length > 0 || config.auth === 'better-auth'
+
+  if (!needsEnv) {
+    logger.dim('No storage or auth options selected, skipping env setup')
     return true
   }
 
   logger.step('Setting up environment variables...')
 
-  const envTemplate = generateEnvTemplate(config.storage)
+  const envTemplate = generateEnvTemplate(config.storage, config.auth, config.emailService)
   writeFile(join(config.projectPath, '.env.example'), envTemplate, {
     dryRun: config.dryRun,
   })
@@ -153,7 +195,7 @@ export async function setupEnv(config: ScaffoldConfig): Promise<boolean> {
 
   ensureDir(join(config.projectPath, 'shared', 'utils'), { dryRun: config.dryRun })
 
-  const envSchemaContent = generateEnvSchema(config.storage)
+  const envSchemaContent = generateEnvSchema(config.storage, config.auth, config.emailService)
   writeFile(
     join(config.projectPath, 'shared', 'utils', 'env-schema.ts'),
     envSchemaContent,

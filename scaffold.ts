@@ -5,11 +5,12 @@ import { resolve, basename } from 'path'
 import { existsSync, readdirSync } from 'fs'
 import pc from 'picocolors'
 import { runPrompts, printConfig } from './lib/prompts'
-import { setupModules, collectModulePackages, getModuleConfigs } from './lib/modules'
+import { setupModules, setupOfficialModules, collectModulePackages, getModuleConfigs } from './lib/modules'
 import { setupStorage, collectStoragePackages, getRedisNitroConfig } from './lib/storage'
+import { setupBetterAuth, collectAuthPackages } from './lib/services'
 import { setupTooling, TOOLING_PACKAGES } from './lib/tooling'
 import { createErrorHandlingUtility, createSharedUtilsIndex } from './lib/files'
-import { exec, bunInstallWithProgress, writeFile, ensureDir, addScriptsToPackageJson, logger } from './lib/utils'
+import { exec, execInteractive, bunInstallWithProgress, writeFile, readFile, ensureDir, addScriptsToPackageJson, logger } from './lib/utils'
 import type { ScaffoldConfig } from './lib/types'
 
 function isDirectoryEmpty(path: string): boolean {
@@ -51,28 +52,26 @@ async function initializeNuxtProject(config: ScaffoldConfig): Promise<boolean> {
   }
 
   const forceFlag = isCurrentDir ? '--force' : ''
-  const command = `bunx nuxi init ${config.projectName} --template minimal --packageManager bun --gitInit true ${forceFlag} --no-install --modules ""`.trim().replace(/\s+/g, ' ')
+  const command = `bun create nuxt@latest ${config.projectName} --template minimal --packageManager bun --gitInit ${forceFlag}`.trim().replace(/\s+/g, ' ')
 
   if (config.dryRun) {
     logger.command(command)
+    logger.dim('  (Interactive Nuxt CLI would run here)')
     return true
   }
 
-  const spinner = p.spinner()
-  spinner.start('Creating Nuxt project...')
-
-  const result = await exec(command, {
+  console.log() // Add spacing before interactive CLI
+  const success = await execInteractive(command, {
     cwd: isCurrentDir ? config.projectPath : resolve(config.projectPath, '..'),
-    dryRun: config.dryRun,
   })
 
-  if (!result.success) {
-    spinner.stop('Failed to create Nuxt project')
-    logger.error(result.output)
+  if (!success) {
+    logger.error('Failed to create Nuxt project')
     return false
   }
 
-  spinner.stop('Nuxt project created')
+  console.log() // Add spacing after interactive CLI
+  logger.success('Nuxt project created')
   return true
 }
 
@@ -94,6 +93,11 @@ function collectAllPackages(config: ScaffoldConfig): AllPackages {
   const storagePackages = collectStoragePackages(config)
   deps.push(...storagePackages.deps)
   devDeps.push(...storagePackages.devDeps)
+
+  // Collect from auth/services
+  const authPackages = collectAuthPackages(config)
+  deps.push(...authPackages.deps)
+  devDeps.push(...authPackages.devDeps)
 
   // Collect from tooling
   devDeps.push(...TOOLING_PACKAGES.devDeps)
@@ -142,55 +146,124 @@ async function installAllPackages(config: ScaffoldConfig): Promise<boolean> {
   return true
 }
 
-async function generateNuxtConfig(config: ScaffoldConfig): Promise<boolean> {
-  logger.step('Generating nuxt.config.ts...')
+async function updateNuxtConfig(config: ScaffoldConfig): Promise<boolean> {
+  logger.step('Updating nuxt.config.ts...')
 
+  const configPath = resolve(config.projectPath, 'nuxt.config.ts')
   const { modules, css, securityOptions } = getModuleConfigs(config)
 
-  let configContent = `// https://nuxt.com/docs/api/configuration/nuxt-config
-export default defineNuxtConfig({
-  compatibilityDate: '${new Date().toISOString().split('T')[0]}',
-  devtools: { enabled: true },
-`
+  // If no additional modules/config needed, skip
+  if (modules.length === 0 && css.length === 0 && !securityOptions && !config.storage.includes('redis')) {
+    logger.dim('  No additional config needed')
+    return true
+  }
 
+  if (config.dryRun) {
+    logger.dim('  Would add modules: ' + modules.join(', '))
+    if (css.length > 0) logger.dim('  Would add css: ' + css.join(', '))
+    if (securityOptions) logger.dim('  Would add security config')
+    if (config.storage.includes('redis')) logger.dim('  Would add redis nitro config')
+    return true
+  }
+
+  // Read existing config
+  let existingConfig = readFile(configPath)
+  if (!existingConfig) {
+    logger.error('nuxt.config.ts not found')
+    return false
+  }
+
+  // Add modules to existing modules array
   if (modules.length > 0) {
-    configContent += `
-  modules: [
-${modules.map((m) => `    '${m}',`).join('\n')}
-  ],
-`
+    const modulesStr = modules.map(m => `'${m}'`).join(', ')
+    
+    // Check if modules array exists
+    if (existingConfig.includes('modules: [')) {
+      // Append to existing modules array - find the closing bracket
+      existingConfig = existingConfig.replace(
+        /modules:\s*\[([\s\S]*?)\]/,
+        (match, content) => {
+          const trimmedContent = content.trim()
+          if (trimmedContent) {
+            // Has existing modules, append with comma
+            return `modules: [${content.trimEnd()}, ${modulesStr}]`
+          } else {
+            // Empty modules array
+            return `modules: [${modulesStr}]`
+          }
+        }
+      )
+    } else {
+      // No modules array, add one after devtools line
+      existingConfig = existingConfig.replace(
+        /(devtools:\s*\{[^}]*\},?)/,
+        `$1\n  modules: [${modulesStr}],`
+      )
+    }
   }
 
+  // Add CSS if needed
   if (css.length > 0) {
-    configContent += `
-  css: [
-${css.map((c) => `    '${c}',`).join('\n')}
-  ],
-`
+    const cssStr = css.map(c => `'${c}'`).join(', ')
+    
+    if (existingConfig.includes('css: [')) {
+      existingConfig = existingConfig.replace(
+        /css:\s*\[([\s\S]*?)\]/,
+        (match, content) => {
+          const trimmedContent = content.trim()
+          if (trimmedContent) {
+            return `css: [${content.trimEnd()}, ${cssStr}]`
+          } else {
+            return `css: [${cssStr}]`
+          }
+        }
+      )
+    } else {
+      // Ensure trailing comma on previous property
+      existingConfig = existingConfig.replace(
+        /(\]|\}|'|"|\w)\s*\n(\s*\}\)\s*)$/,
+        '$1,\n$2'
+      )
+      existingConfig = existingConfig.replace(
+        /(\n\s*)(\}\)\s*)$/,
+        `$1  css: [${cssStr}],\n$2`
+      )
+    }
   }
 
+  // Add security config if needed
   if (securityOptions) {
-    configContent += `
-  security: {
-    csrf: true,
-  },
-`
+    if (!existingConfig.includes('security:')) {
+      // Ensure trailing comma on previous property
+      existingConfig = existingConfig.replace(
+        /(\]|\}|'|"|\w)\s*\n(\s*\}\)\s*)$/,
+        '$1,\n$2'
+      )
+      existingConfig = existingConfig.replace(
+        /(\n\s*)(\}\)\s*)$/,
+        `$1  security: {\n    csrf: true,\n  },\n$2`
+      )
+    }
   }
 
+  // Add redis nitro config if needed
   if (config.storage.includes('redis')) {
-    configContent += `
-${getRedisNitroConfig()}
-`
+    if (!existingConfig.includes('nitro:')) {
+      const redisConfig = getRedisNitroConfig()
+      // Ensure trailing comma on previous property
+      existingConfig = existingConfig.replace(
+        /(\]|\}|'|"|\w)\s*\n(\s*\}\)\s*)$/,
+        '$1,\n$2'
+      )
+      existingConfig = existingConfig.replace(
+        /(\n\s*)(\}\)\s*)$/,
+        `$1${redisConfig}\n$2`
+      )
+    }
   }
 
-  configContent += `})
-`
-
-  writeFile(resolve(config.projectPath, 'nuxt.config.ts'), configContent, {
-    dryRun: config.dryRun,
-  })
-
-  logger.success('nuxt.config.ts generated')
+  writeFile(configPath, existingConfig, { dryRun: config.dryRun })
+  logger.success('nuxt.config.ts updated')
   return true
 }
 
@@ -391,47 +464,39 @@ async function main(): Promise<void> {
   }
 
   try {
-    // Step 1a: Always install Nuxt first (required for nuxi module add to work)
-    logger.title('Installing Nuxt')
-    const spinner = p.spinner()
-    spinner.start('Installing Nuxt dependencies...')
-    
-    const nuxtInstalled = await exec('bun install', {
-      cwd: normalizedConfig.projectPath,
-      dryRun: normalizedConfig.dryRun,
-    })
-    
-    if (!nuxtInstalled.success && !normalizedConfig.dryRun) {
-      spinner.stop('Failed to install Nuxt')
-      logger.error(nuxtInstalled.output)
-      process.exit(1)
-    }
-    spinner.stop('Nuxt installed')
+    // Step 1: Configure official modules (installed by Nuxt CLI)
+    await setupOfficialModules(normalizedConfig)
 
-    // Step 1b: Install additional packages (modules, storage, tooling)
+    // Step 2: Install additional packages (non-official modules, storage, tooling)
+    // Note: Official modules and Nuxt are already installed by `bun create nuxt@latest`
     const packagesInstalled = await installAllPackages(normalizedConfig)
     if (!packagesInstalled) {
       logger.error('Failed to install packages')
       process.exit(1)
     }
 
-    // Step 2: Setup modules (nuxi module add + file creation)
+    // Step 3: Setup modules (nuxt module add for non-official + file creation)
     await setupModules(normalizedConfig)
 
-    // Step 3: Setup storage (file creation only, packages already installed)
+    // Step 4: Setup storage (file creation only, packages already installed)
     await setupStorage(normalizedConfig)
 
-    // Step 4: Setup tooling (file creation only, packages already installed)
+    // Step 5: Setup auth/services (file creation only, packages already installed)
+    if (normalizedConfig.auth === 'better-auth') {
+      await setupBetterAuth(normalizedConfig)
+    }
+
+    // Step 6: Setup tooling (file creation only, packages already installed)
     await setupTooling(normalizedConfig)
 
-    // Step 5: Create shared utilities
+    // Step 7: Create shared utilities
     await createErrorHandlingUtility(normalizedConfig)
     await createSharedUtilsIndex(normalizedConfig)
 
-    // Step 6: Generate nuxt.config.ts
-    await generateNuxtConfig(normalizedConfig)
+    // Step 8: Update nuxt.config.ts with our additions
+    await updateNuxtConfig(normalizedConfig)
 
-    // Step 7: Create test directories and workflows
+    // Step 9: Create test directories and workflows
     await createTestDirectories(normalizedConfig)
     await createGitHubWorkflows(normalizedConfig)
 
@@ -443,10 +508,37 @@ async function main(): Promise<void> {
       pc.cyan('  bun run dev'),
     ].join('\n')
 
+    // Build auth-related messages
+    let authMessage = ''
+    if (normalizedConfig.auth === 'better-auth') {
+      authMessage += '\n\n' + pc.bold('📦 Better Auth Setup:\n')
+
+      if (normalizedConfig.orm === 'drizzle') {
+        authMessage += pc.dim('  Generate auth schema:\n')
+        authMessage += pc.cyan('    bunx @better-auth/cli generate --config ./server/utils/auth.ts --output ./server/database/schema\n')
+        authMessage += pc.cyan('    bun run db:generate && bun run db:migrate\n')
+      } else if (normalizedConfig.orm === 'prisma') {
+        authMessage += pc.dim('  Generate auth schema:\n')
+        authMessage += pc.cyan('    bunx @better-auth/cli generate --config ./server/utils/auth.ts\n')
+        authMessage += pc.cyan('    bun run db:generate && bun run db:migrate\n')
+      } else {
+        authMessage += pc.dim('  Using stateless auth (no database required)\n')
+      }
+
+      if (normalizedConfig.emailService === 'nodemailer') {
+        authMessage += '\n' + pc.bold('📧 Gmail SMTP Setup:\n')
+        authMessage += pc.dim('  1. Enable 2FA on your Google account\n')
+        authMessage += pc.dim('  2. Generate an App Password: https://myaccount.google.com/apppasswords\n')
+        authMessage += pc.dim('  3. Add GMAIL_USER and GMAIL_PASS to your .env file\n')
+      }
+    }
+
     p.outro(
       pc.green('✨ Your Nuxt project is ready!\n\n') +
         pc.dim('Next steps:\n') +
-        nextSteps + '\n'
+        nextSteps +
+        authMessage +
+        '\n'
     )
   } catch (error) {
     logger.error((error as Error).message)

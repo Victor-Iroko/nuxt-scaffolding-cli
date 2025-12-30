@@ -5,13 +5,14 @@ export interface ShellOptions {
   cwd?: string
   dryRun?: boolean
   silent?: boolean
+  env?: Record<string, string>
 }
 
 export async function exec(
   command: string,
   options: ShellOptions = {}
 ): Promise<{ success: boolean; output: string }> {
-  const { cwd, dryRun = false, silent = false } = options
+  const { cwd, dryRun = false, silent = false, env } = options
 
   if (dryRun) {
     logger.command(command)
@@ -23,7 +24,11 @@ export async function exec(
   }
 
   try {
-    const result = await $`${{ raw: command }}`.cwd(cwd ?? process.cwd()).quiet()
+    let shell = $`${{ raw: command }}`.cwd(cwd ?? process.cwd()).quiet()
+    if (env) {
+      shell = shell.env({ ...process.env, ...env })
+    }
+    const result = await shell
     return { success: true, output: result.text() }
   } catch (error) {
     const err = error as Error
@@ -104,4 +109,25 @@ export async function bunxCommand(
 ): Promise<boolean> {
   const result = await exec(`bunx ${command}`, options)
   return result.success
+}
+
+export async function execInteractive(
+  command: string,
+  options: { cwd?: string; dryRun?: boolean } = {}
+): Promise<boolean> {
+  const { cwd, dryRun = false } = options
+
+  if (dryRun) {
+    logger.command(command)
+    return true
+  }
+
+  logger.command(command)
+
+  try {
+    await $`${{ raw: command }}`.cwd(cwd ?? process.cwd())
+    return true
+  } catch {
+    return false
+  }
 }

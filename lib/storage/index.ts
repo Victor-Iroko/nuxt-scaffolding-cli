@@ -17,8 +17,8 @@ export function collectStoragePackages(config: ScaffoldConfig): StoragePackages 
   const deps: string[] = []
   const devDeps: string[] = []
 
-  // Env packages are needed if any storage is selected
-  if (config.storage.length > 0) {
+  // Env packages are needed if any storage is selected or auth is selected
+  if (config.storage.length > 0 || config.auth === 'better-auth') {
     deps.push(...ENV_PACKAGES.deps)
     devDeps.push(...ENV_PACKAGES.devDeps)
   }

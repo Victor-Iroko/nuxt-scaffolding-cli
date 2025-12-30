@@ -1,5 +1,5 @@
 export { logger } from './logger'
-export { exec, execWithOutput, bunInstall, bunInstallWithProgress, bunRun, bunxCommand } from './shell'
+export { exec, execWithOutput, execInteractive, bunInstall, bunInstallWithProgress, bunRun, bunxCommand } from './shell'
 export type { ShellOptions } from './shell'
 export {
   writeFile,

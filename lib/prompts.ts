@@ -4,13 +4,15 @@ import pc from 'picocolors'
 import {
   type ScaffoldConfig,
   type NuxtModule,
-  type OptionalModule,
   type StorageOption,
   type OrmChoice,
+  type AuthChoice,
+  type EmailServiceChoice,
   RECOMMENDED_MODULES,
-  OPTIONAL_MODULES,
   STORAGE_OPTIONS,
   ORM_OPTIONS,
+  AUTH_OPTIONS,
+  EMAIL_SERVICE_OPTIONS,
 } from './types'
 
 export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<ScaffoldConfig | null> {
@@ -35,7 +37,7 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
   }
 
   const modules = await p.multiselect({
-    message: 'Select recommended modules to install:',
+    message: 'Select additional community modules to install:',
     options: RECOMMENDED_MODULES.map((m) => ({
       value: m.value,
       label: m.label,
@@ -46,21 +48,6 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
   })
 
   if (p.isCancel(modules)) {
-    p.cancel('Operation cancelled.')
-    return null
-  }
-
-  const optionalModules = await p.multiselect({
-    message: 'Select optional modules:',
-    options: OPTIONAL_MODULES.map((m) => ({
-      value: m.value,
-      label: m.label,
-      hint: m.hint,
-    })),
-    required: false,
-  })
-
-  if (p.isCancel(optionalModules)) {
     p.cancel('Operation cancelled.')
     return null
   }
@@ -100,6 +87,40 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
     orm = ormChoice as OrmChoice
   }
 
+  const authChoice = await p.select({
+    message: 'Select an authentication solution:',
+    options: AUTH_OPTIONS.map((o) => ({
+      value: o.value,
+      label: o.label,
+      hint: o.hint,
+    })),
+  })
+
+  if (p.isCancel(authChoice)) {
+    p.cancel('Operation cancelled.')
+    return null
+  }
+
+  let emailService: EmailServiceChoice = 'none'
+
+  if (authChoice === 'better-auth') {
+    const emailChoice = await p.select({
+      message: 'Select an email service for auth notifications:',
+      options: EMAIL_SERVICE_OPTIONS.map((o) => ({
+        value: o.value,
+        label: o.label,
+        hint: o.hint,
+      })),
+    })
+
+    if (p.isCancel(emailChoice)) {
+      p.cancel('Operation cancelled.')
+      return null
+    }
+
+    emailService = emailChoice as EmailServiceChoice
+  }
+
   const confirmed = await p.confirm({
     message: 'Ready to scaffold your project?',
     initialValue: true,
@@ -114,9 +135,10 @@ export async function runPrompts(defaultPath: string, dryRun: boolean): Promise<
     projectName: projectName as string,
     projectPath: defaultPath,
     modules: modules as NuxtModule[],
-    optionalModules: optionalModules as OptionalModule[],
     storage: storage as StorageOption[],
     orm,
+    auth: authChoice as AuthChoice,
+    emailService,
     dryRun,
   }
 }
@@ -127,9 +149,10 @@ export function printConfig(config: ScaffoldConfig): void {
       `${pc.bold('Project:')} ${config.projectName}`,
       `${pc.bold('Path:')} ${config.projectPath}`,
       `${pc.bold('Modules:')} ${config.modules.length ? config.modules.join(', ') : 'None'}`,
-      `${pc.bold('Optional:')} ${config.optionalModules.length ? config.optionalModules.join(', ') : 'None'}`,
       `${pc.bold('Storage:')} ${config.storage.length ? config.storage.join(', ') : 'None'}`,
       `${pc.bold('ORM:')} ${config.orm}`,
+      `${pc.bold('Auth:')} ${config.auth}`,
+      `${pc.bold('Email:')} ${config.emailService}`,
       config.dryRun ? pc.yellow('(Dry run - no changes will be made)') : '',
     ]
       .filter(Boolean)

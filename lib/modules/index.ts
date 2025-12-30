@@ -1,45 +1,56 @@
-import type { ScaffoldConfig } from '../types'
-import { exec, logger } from '../utils'
+import type { ScaffoldConfig, NuxtModule } from '../types'
+import { exec, readJsonFile, logger } from '../utils'
 
-import { setupNuxtUI, NUXT_UI_PACKAGES, NUXT_UI_CONFIG } from './nuxt-ui'
+// Official module setup functions (installed by Nuxt CLI, configured by us)
+import { setupNuxtUI, NUXT_UI_CONFIG } from './nuxt-ui'
 import { setupEslint, ESLINT_CONFIG } from './eslint'
-import { setupTestUtils, TEST_UTILS_PACKAGES, TEST_UTILS_CONFIG } from './test-utils'
-import { setupContent, CONTENT_PACKAGES, CONTENT_CONFIG } from './content'
+import { setupTestUtils, TEST_UTILS_CONFIG } from './test-utils'
+
+// Non-official module setup functions
 import { setupPinia, PINIA_PACKAGES, PINIA_CONFIG } from './pinia'
 import { VUEUSE_CONFIG } from './vueuse'
 import { MOTION_PACKAGES, MOTION_CONFIG } from './motion'
 import { SEO_CONFIG } from './seo'
 import { SECURITY_CONFIG } from './security'
-import { IMAGE_CONFIG } from './image'
 import { MDC_PACKAGES, MDC_CONFIG } from './mdc'
-import { ICON_CONFIG } from './icon'
-import { FONTS_CONFIG } from './fonts'
-import { SCRIPTS_CONFIG } from './scripts'
-import { DEVTOOLS_CONFIG } from './devtools'
-import { HINTS_CONFIG } from './hints'
 
 export {
-  setupNuxtUI as installNuxtUI,
-  setupEslint as installEslint,
-  setupTestUtils as installTestUtils,
-  setupContent as installContent,
-  setupPinia as installPinia,
+  setupNuxtUI,
+  setupEslint,
+  setupTestUtils,
+  setupPinia,
   NUXT_UI_CONFIG,
   ESLINT_CONFIG,
   TEST_UTILS_CONFIG,
-  CONTENT_CONFIG,
   PINIA_CONFIG,
   VUEUSE_CONFIG,
   MOTION_CONFIG,
   SEO_CONFIG,
   SECURITY_CONFIG,
-  IMAGE_CONFIG,
   MDC_CONFIG,
-  ICON_CONFIG,
-  FONTS_CONFIG,
-  SCRIPTS_CONFIG,
-  DEVTOOLS_CONFIG,
-  HINTS_CONFIG,
+}
+
+// Non-official modules that need `nuxt module add` after project init
+const NON_OFFICIAL_MODULE_MAP: Partial<Record<NuxtModule, string>> = {
+  pinia: 'pinia',
+  vueuse: 'vueuse',
+  motion: '@vueuse/motion',
+  seo: '@nuxtjs/seo',
+  security: 'security',
+  mdc: '@nuxtjs/mdc',
+}
+
+export function getNonOfficialModules(config: ScaffoldConfig): string[] {
+  const modules: string[] = []
+
+  for (const mod of config.modules) {
+    const moduleName = NON_OFFICIAL_MODULE_MAP[mod]
+    if (moduleName) {
+      modules.push(moduleName)
+    }
+  }
+
+  return modules
 }
 
 export interface ModulePackages {
@@ -51,41 +62,33 @@ export function collectModulePackages(config: ScaffoldConfig): ModulePackages {
   const deps: string[] = []
   const devDeps: string[] = []
 
-  // Collect packages from selected modules
-  if (config.modules.includes('nuxt-ui')) {
-    deps.push(...NUXT_UI_PACKAGES.deps)
-  }
+  // Only collect packages for modules NOT handled by --modules flag at init
+  // Official modules are installed via `bun create nuxt@latest --modules`
 
-  if (config.modules.includes('test-utils')) {
-    devDeps.push(...TEST_UTILS_PACKAGES.devDeps)
-  }
-
+  // Pinia needs extra package (pinia-plugin-persistedstate)
   if (config.modules.includes('pinia')) {
     deps.push(...PINIA_PACKAGES.deps)
   }
 
+  // Motion needs the package
   if (config.modules.includes('motion')) {
     deps.push(...MOTION_PACKAGES.deps)
   }
 
+  // MDC needs the package
   if (config.modules.includes('mdc')) {
     deps.push(...MDC_PACKAGES.deps)
-  }
-
-  // Collect packages from optional modules
-  if (config.optionalModules.includes('content')) {
-    deps.push(...CONTENT_PACKAGES.deps)
   }
 
   return { deps, devDeps }
 }
 
-async function runNuxiModuleAdd(modules: string[], config: ScaffoldConfig): Promise<boolean> {
+async function runNuxtModuleAdd(modules: string[], config: ScaffoldConfig): Promise<boolean> {
   let allSuccess = true
 
   for (const mod of modules) {
-    logger.step(`Adding ${mod} module via nuxi...`)
-    const result = await exec(`bunx nuxi module add ${mod}`, {
+    logger.step(`Adding ${mod} module via nuxt module add...`)
+    const result = await exec(`bunx nuxt module add ${mod}`, {
       cwd: config.projectPath,
       dryRun: config.dryRun,
     })
@@ -101,46 +104,19 @@ async function runNuxiModuleAdd(modules: string[], config: ScaffoldConfig): Prom
 export async function setupModules(config: ScaffoldConfig): Promise<boolean> {
   logger.title('Setting up Nuxt Modules')
 
-  // Run nuxi module add for modules that need it
-  const nuxiModules: string[] = []
-  if (config.modules.includes('eslint')) nuxiModules.push('eslint')
-  if (config.modules.includes('pinia')) nuxiModules.push('pinia')
-  if (config.modules.includes('vueuse')) nuxiModules.push('vueuse')
-  if (config.modules.includes('seo')) nuxiModules.push('@nuxtjs/seo')
-  if (config.modules.includes('security')) nuxiModules.push('security')
-  if (config.modules.includes('icon')) nuxiModules.push('icon')
-  if (config.modules.includes('fonts')) nuxiModules.push('fonts')
-  if (config.modules.includes('scripts')) nuxiModules.push('scripts')
-  if (config.modules.includes('devtools')) nuxiModules.push('devtools')
-  if (config.modules.includes('hints')) nuxiModules.push('hints')
-  if (config.optionalModules.includes('image')) nuxiModules.push('image')
+  // Non-official modules need `nuxt module add` after init
+  const nonOfficialModules = getNonOfficialModules(config)
 
-  if (nuxiModules.length > 0) {
-    const nuxiSuccess = await runNuxiModuleAdd(nuxiModules, config)
-    if (!nuxiSuccess) {
-      logger.warn('Some nuxi module additions failed')
+  if (nonOfficialModules.length > 0) {
+    const success = await runNuxtModuleAdd(nonOfficialModules, config)
+    if (!success) {
+      logger.warn('Some module additions failed')
     }
   }
 
-  // Run setup functions for modules that need file creation
-  if (config.modules.includes('nuxt-ui')) {
-    await setupNuxtUI(config)
-  }
-
-  if (config.modules.includes('eslint')) {
-    await setupEslint(config)
-  }
-
-  if (config.modules.includes('test-utils')) {
-    await setupTestUtils(config)
-  }
-
+  // Run setup functions for modules that need additional file creation
   if (config.modules.includes('pinia')) {
     await setupPinia(config)
-  }
-
-  if (config.optionalModules.includes('content')) {
-    await setupContent(config)
   }
 
   logger.success('All modules configured')
@@ -161,18 +137,8 @@ export function getModuleConfigs(config: ScaffoldConfig): {
   const css: string[] = []
   let securityOptions: Record<string, unknown> | undefined
 
-  if (config.modules.includes('nuxt-ui')) {
-    modules.push(NUXT_UI_CONFIG.module)
-    css.push(NUXT_UI_CONFIG.css)
-  }
-
-  if (config.modules.includes('eslint')) {
-    modules.push(ESLINT_CONFIG.module)
-  }
-
-  if (config.modules.includes('test-utils')) {
-    modules.push(TEST_UTILS_CONFIG.module)
-  }
+  // Only add non-official modules that we manage
+  // Official modules are already configured by Nuxt CLI
 
   if (config.modules.includes('pinia')) {
     modules.push(...PINIA_CONFIG.modules)
@@ -199,33 +165,45 @@ export function getModuleConfigs(config: ScaffoldConfig): {
     modules.push(MDC_CONFIG.module)
   }
 
-  if (config.modules.includes('icon')) {
-    modules.push(ICON_CONFIG.module)
-  }
-
-  if (config.modules.includes('fonts')) {
-    modules.push(FONTS_CONFIG.module)
-  }
-
-  if (config.modules.includes('scripts')) {
-    modules.push(SCRIPTS_CONFIG.module)
-  }
-
-  if (config.modules.includes('devtools')) {
-    modules.push(DEVTOOLS_CONFIG.module)
-  }
-
-  if (config.modules.includes('hints')) {
-    modules.push(HINTS_CONFIG.module)
-  }
-
-  if (config.optionalModules.includes('content')) {
-    modules.push(CONTENT_CONFIG.module)
-  }
-
-  if (config.optionalModules.includes('image')) {
-    modules.push(IMAGE_CONFIG.module)
-  }
-
   return { modules, css, securityOptions }
+}
+
+// Setup official modules that were installed by Nuxt CLI
+// Reads package.json to detect which official modules are installed
+export async function setupOfficialModules(config: ScaffoldConfig): Promise<boolean> {
+  logger.title('Configuring Official Modules')
+
+  const packageJsonPath = `${config.projectPath}/package.json`
+  const packageJson = readJsonFile(packageJsonPath) as {
+    dependencies?: Record<string, string>
+    devDependencies?: Record<string, string>
+  } | null
+
+  if (!packageJson) {
+    logger.warn('Could not read package.json')
+    return false
+  }
+
+  const deps: Record<string, string> = {
+    ...(packageJson.dependencies || {}),
+    ...(packageJson.devDependencies || {}),
+  }
+
+  // Configure @nuxt/ui if installed
+  if (deps['@nuxt/ui']) {
+    await setupNuxtUI(config)
+  }
+
+  // Configure @nuxt/eslint if installed
+  if (deps['@nuxt/eslint']) {
+    await setupEslint(config)
+  }
+
+  // Configure @nuxt/test-utils if installed
+  if (deps['@nuxt/test-utils']) {
+    await setupTestUtils(config)
+  }
+
+  logger.success('Official modules configured')
+  return true
 }
